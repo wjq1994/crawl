@@ -2,6 +2,7 @@ let express = require('express');
 let bodyParser = require('body-parser');
 let session = require('express-session');
 let {checkLogin} = require('./middleware/auth');
+const elasticsearch = require('../elasticsearch');
 let app = express();
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json({}));
@@ -65,6 +66,25 @@ app.post('/login', async function (req, res) {
     req.session.user = user;
     res.redirect('/');//如果登录成功，则把当前的用户信息放在会话中，并且重定向到首页
 });
+app.get('/search', async function (req, res) {
+    res.render('search', { title: '登录',articles: []});
+});
+app.post('/search', async function (req, res) {
+    let {keyword} = req.body;
+    let result = await elasticsearch.search({
+        index: 'crawl',
+        body: {
+            query: {
+                match: {
+                    title: keyword
+                }
+            }
+        }
+    });
+    let hits = result.body.hits.hits;
+    let articles = hits.map(item => item._source);
+    res.render('search', { title: '搜索', articles});
+});
 app.get('/subscribe',checkLogin, async function (req, res) {
     let tags = await query(`SELECT * FROM tags`);
     let user = req.session.user;//{id,name}
@@ -79,9 +99,19 @@ app.post('/subscribe', checkLogin, async function (req, res) {
     let { tags } = req.body;//[ '1', '2', '9' ] }
     let user = req.session.user;//{id,name}
     await query(`DELETE FROM user_tag WHERE user_id=?`, [user.id]);
-    for (let i = 0; i < tags.length; i++) {
-        await query(`INSERT INTO user_tag(user_id,tag_id) VALUES(?,?)`, [user.id, parseInt(tags[i])])
+    if (tags === null || tags === undefined) {
+        debug("没有选择数据");
+        res.redirect('back');
+        return;
     }
+    if (Array.isArray(tags)) {
+        for (let i = 0; i < tags.length; i++) {
+            await query(`INSERT INTO user_tag(user_id,tag_id) VALUES(?,?)`, [user.id, parseInt(tags[i])])
+        }
+    } else {
+        await query(`INSERT INTO user_tag(user_id,tag_id) VALUES(?,?)`, [user.id, parseInt(tags)])
+    }
+    
     res.redirect('back');
 });
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))

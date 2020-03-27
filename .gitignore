@@ -1,2 +1,3 @@
 .DS_Store
 node_modules/
+package/elasticsearch/elasticsearch-7.6.1*

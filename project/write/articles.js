@@ -2,6 +2,7 @@ const {query} = require('../db');
 const debug = require('debug')('crawl:write:articles');
 const fs = require('fs');
 const sendMail = require('../mail');
+const elasticsearch = require('../elasticsearch');
 //保存文章的详情和文章和标签的关系
 let articles = async function(articleList) {
     debug(`写入文章列表`);
@@ -9,10 +10,18 @@ let articles = async function(articleList) {
         let oldArticles = await query(`select * from articles where id = ? limit 1`, [article.id])
         try {
             if(Array.isArray(oldArticles) && oldArticles.length > 0) {
+                debug(11111);
                 let oldArticle = oldArticles[0];
                 await query(`update articles set title=?, content=?, href=? where id=?`, [article.title, article.content, article.href, article.id])
             } else {
                 await query(`insert into articles(id, title, href,content) values(?,?,?,?)`, [article.id, article.title, article.href, article.content])
+                debug(22222);
+                //此处写入了新的文章 再次把新文章插入
+                elasticsearch.index({
+                    index: 'crawl',
+                    id: article.id,
+                    body: article
+                  })
             }
         } catch (error) {
             debug(error)

@@ -1,0 +1,17 @@
+<%- include('header.html') %>
+    <div class="row" class="text-center">
+        <div class="col-md-8 col-md-offset-2">
+            <form method="POST">
+                <input type="text" class="form-control" name="keyword" placeholder="请输入检索关键词">
+                <ul class="list-group">
+                    <%for(let i=0;i<articles.length;i++) {
+                        let article = articles[i];%>
+                        <li class="list-group-item">
+                            <a href="/detail/<%=article.id%>"><%=article.title%></a>
+                        </li>
+                    <%}%>
+                </ul>
+            </form>
+        </div>
+    </div>
+<%- include('footer.html') %>
